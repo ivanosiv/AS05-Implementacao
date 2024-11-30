@@ -35,7 +35,7 @@ else:
 
     # Processa o documento se enviado
     if uploaded_file:
-        st.write("### Prévia do documento:")
+        st.write("### Status do documento:")
         if uploaded_file.name.endswith("pdf"):
             # Salva o arquivo PDF localmente
             temp_path = Path("temp.pdf")
