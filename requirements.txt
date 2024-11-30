@@ -5,6 +5,6 @@ streamlit
 openai 
 PyPDF2
 os
-google.generativeai
+google-generativeai
 PIL
 io
