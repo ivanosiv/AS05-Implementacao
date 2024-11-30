@@ -1,53 +1,53 @@
 import streamlit as st
 from openai import OpenAI
 
-# Show title and description.
-st.title("📄 Document question answering")
+# Exibe o título e a descrição.
+st.title("📄 Perguntas sobre documentos")
 st.write(
-    "Upload a document below and ask a question about it – GPT will answer! "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
+    "Envie um documento abaixo e faça uma pergunta sobre ele – o GPT responderá! "
+    "Para usar este aplicativo, você precisa fornecer uma chave de API da OpenAI, que pode ser obtida [aqui](https://platform.openai.com/account/api-keys)."
 )
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
+# Solicita ao usuário sua chave de API da OpenAI via `st.text_input`.
+# Alternativamente, você pode armazenar a chave de API em `./.streamlit/secrets.toml` e acessá-la
+# através de `st.secrets`, veja https://docs.streamlit.io/develop/concepts/connections/secrets-management
+openai_api_key = st.text_input("Chave de API da OpenAI", type="password")
 if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
+    st.info("Por favor, insira sua chave de API da OpenAI para continuar.", icon="🗝️")
 else:
 
-    # Create an OpenAI client.
+    # Cria um cliente OpenAI.
     client = OpenAI(api_key=openai_api_key)
 
-    # Let the user upload a file via `st.file_uploader`.
+    # Permite ao usuário enviar um arquivo via `st.file_uploader`.
     uploaded_file = st.file_uploader(
-        "Upload a document (.txt or .md)", type=("txt", "md")
+        "Envie um documento (.txt ou .md)", type=("txt", "md")
     )
 
-    # Ask the user for a question via `st.text_area`.
+    # Solicita ao usuário uma pergunta via `st.text_area`.
     question = st.text_area(
-        "Now ask a question about the document!",
-        placeholder="Can you give me a short summary?",
+        "Agora faça uma pergunta sobre o documento!",
+        placeholder="Você pode me dar um resumo curto?",
         disabled=not uploaded_file,
     )
 
     if uploaded_file and question:
 
-        # Process the uploaded file and question.
+        # Processa o arquivo enviado e a pergunta.
         document = uploaded_file.read().decode()
         messages = [
             {
                 "role": "user",
-                "content": f"Here's a document: {document} \n\n---\n\n {question}",
+                "content": f"Aqui está um documento: {document} \n\n---\n\n {question}",
             }
         ]
 
-        # Generate an answer using the OpenAI API.
+        # Gera uma resposta usando a API da OpenAI.
         stream = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages,
             stream=True,
         )
 
-        # Stream the response to the app using `st.write_stream`.
+        # Transmite a resposta para o app usando `st.write_stream`.
         st.write_stream(stream)
