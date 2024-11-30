@@ -3,7 +3,7 @@ from PyPDF2 import PdfReader
 import os
 import google.generativeai as genai
 from PIL import Image
-from io import BytesIO
+from pathlib import Path
 
 # Configuração inicial do Streamlit
 st.set_page_config(page_title="Análise de Documentos e Imagens", page_icon="📄", layout="centered")
@@ -33,48 +33,58 @@ else:
     # Upload de imagens para análise
     uploaded_image = st.file_uploader("Carregar uma imagem de refeição ou ingredientes:", type=["png", "jpg", "jpeg"])
 
-    # Variáveis para conteúdo do documento e imagem
-    document = ""
-    image = None
-
+    # Processa o documento se enviado
     if uploaded_file:
-        if uploaded_file.name.endswith(("txt", "md")):
-            document = uploaded_file.read().decode()
-        elif uploaded_file.name.endswith("pdf"):
-            pdf_reader = PdfReader(uploaded_file)
-            document = "".join([page.extract_text() for page in pdf_reader.pages])
-
         st.write("### Prévia do documento:")
-        st.write(document[:500] + "...")  # Mostra os primeiros 500 caracteres do documento
+        if uploaded_file.name.endswith("pdf"):
+            # Salva o arquivo PDF localmente
+            temp_path = Path("temp.pdf")
+            temp_path.write_bytes(uploaded_file.getvalue())
 
+            try:
+                # Faz o upload do PDF para o Gemini
+                sample_pdf = genai.upload_file(temp_path)
+                st.write("Arquivo enviado ao Gemini com sucesso!")
+
+                # Campo para pergunta
+                question = st.text_area(
+                    "Faça uma pergunta sobre o documento!",
+                    placeholder="Exemplo: Qual o resumo do documento?",
+                )
+
+                if question:
+                    st.write("### Resposta baseada no documento:")
+                    # Gera resposta usando o modelo Gemini
+                    model = genai.GenerativeModel("gemini-1.5-flash")
+                    response = model.generate_content([question, sample_pdf])
+                    st.write(response.text)
+
+            except Exception as e:
+                st.error(f"Erro ao processar o documento no Gemini: {e}")
+            finally:
+                # Remove o arquivo temporário após o upload
+                temp_path.unlink()
+
+        else:
+            st.error("Atualmente, apenas arquivos PDF são suportados para envio ao Gemini.")
+
+    # Processa a imagem se enviada
     if uploaded_image:
-        image = Image.open(uploaded_image)
-        st.image(image, caption="Imagem carregada", use_column_width=True)
+        st.image(uploaded_image, caption="Imagem carregada", use_column_width=True)
 
-    # Campo para pergunta
-    question = st.text_area(
-        "Faça uma pergunta sobre o documento ou solicite uma análise da imagem!",
-        placeholder="Exemplo: Qual o resumo do documento? Ou analise os ingredientes desta imagem.",
-        disabled=not (document or image),
-    )
+        # Campo para pergunta
+        question = st.text_area(
+            "Faça uma pergunta sobre a imagem!",
+            placeholder="Exemplo: Quais são os ingredientes na imagem?",
+        )
 
-    if question:
-        # Caso o documento tenha sido carregado
-        if document:
-            st.write("### Resposta baseada no documento:")
+        if question:
+            st.write("### Resposta baseada na imagem:")
             try:
-                prompt = f"Aqui está o conteúdo do documento:\n\n{document}\n\nPergunta: {question}"
-                response = genai.generate_text(prompt, model="gemini-1.5-flash", temperature=0.5)
-                st.write(response.result)
+                # Gera resposta para a imagem
+                prompt = f"Analise a imagem e responda: {question}"
+                model = genai.GenerativeModel("gemini-1.5-flash")
+                response = model.generate_content([prompt])
+                st.write(response.text)
             except Exception as e:
-                st.error(f"Erro ao consultar o Gemini: {e}")
-
-        # Caso uma imagem tenha sido carregada
-        if image:
-            st.write("### Análise baseada na imagem:")
-            try:
-                prompt = f"Analise a imagem carregada considerando a seguinte pergunta: {question}."
-                response = genai.generate_text(prompt, model="gemini-1.5-flash", temperature=0.5)
-                st.write(response.result)
-            except Exception as e:
-                st.error(f"Erro ao consultar o Gemini: {e}")
+                st.error(f"Erro ao processar a imagem no Gemini: {e}")
