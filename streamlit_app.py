@@ -1,11 +1,9 @@
 import streamlit as st
-from openai import OpenAI
 from PyPDF2 import PdfReader
 import os
 import google.generativeai as genai
 from PIL import Image
 from io import BytesIO
-import base64
 
 # Configuração inicial do Streamlit
 st.set_page_config(page_title="Análise de Documentos e Imagens", page_icon="📄", layout="centered")
@@ -14,19 +12,18 @@ st.set_page_config(page_title="Análise de Documentos e Imagens", page_icon="�
 st.title("📄 Perguntas sobre documentos e análise de imagens")
 
 st.write(
-    "Envie um documento ou imagem para análise e faça perguntas relacionadas ao conteúdo."
+    "Envie um documento ou imagem para análise e faça perguntas relacionadas ao conteúdo. "
+    "Certifique-se de fornecer a chave de API do Google Gemini."
 )
 
-# Solicita ao usuário as chaves de API
-openai_api_key = st.text_input("Chave de API da OpenAI", type="password")
+# Solicita ao usuário a chave de API do Gemini
 google_api_key = st.text_input("Chave de API do Google (Gemini)", value=os.getenv("GOOGLE_API_KEY") or "", type="password")
 
-if not openai_api_key or not google_api_key:
-    st.info("Por favor, insira suas chaves de API para continuar.", icon="🗝️")
+if not google_api_key:
+    st.info("Por favor, insira sua chave de API do Google Gemini para continuar.", icon="🗝️")
 else:
-    # Configurações das APIs
+    # Configurações do Gemini
     genai.configure(api_key=google_api_key)
-    openai_client = OpenAI(api_key=openai_api_key)
 
     # Upload do documento
     uploaded_file = st.file_uploader(
@@ -62,34 +59,22 @@ else:
     )
 
     if question:
-        # Verifica se o prompt deve ser enviado ao GPT ou Gemini
+        # Caso o documento tenha sido carregado
         if document:
-            st.write("### Resposta do GPT:")
-            messages = [
-                {
-                    "role": "user",
-                    "content": f"Aqui está um documento: {document} \n\n---\n\n {question}",
-                }
-            ]
+            st.write("### Resposta baseada no documento:")
             try:
-                stream = openai_client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=messages,
-                    stream=True,
-                )
-                st.write_stream(stream)
+                prompt = f"Aqui está o conteúdo do documento:\n\n{document}\n\nPergunta: {question}"
+                response = genai.generate_text(prompt, model="gemini-1.5-flash", temperature=0.5)
+                st.write(response.result)
             except Exception as e:
-                st.error(f"Erro ao consultar GPT: {e}")
+                st.error(f"Erro ao consultar o Gemini: {e}")
 
+        # Caso uma imagem tenha sido carregada
         if image:
-            st.write("### Análise da Imagem com Gemini:")
-            prompt = (
-                f"Analise a imagem carregada considerando as seguintes informações: {question}. "
-            )
+            st.write("### Análise baseada na imagem:")
             try:
-                st.write_stream(
-                    genai.GenerativeModel(model_name="gemini-1.5-flash")
-                    .generate_content(contents=[{"role": "user", "parts": [prompt]}], stream=True)
-                )
+                prompt = f"Analise a imagem carregada considerando a seguinte pergunta: {question}."
+                response = genai.generate_text(prompt, model="gemini-1.5-flash", temperature=0.5)
+                st.write(response.result)
             except Exception as e:
-                st.error(f"Erro ao consultar Gemini: {e}")
+                st.error(f"Erro ao consultar o Gemini: {e}")
