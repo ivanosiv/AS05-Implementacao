@@ -1,10 +1,5 @@
 streamlit
 openai
 PyPDF2
-streamlit
-openai 
-PyPDF2
-os
 google-generativeai
 PIL
-io
